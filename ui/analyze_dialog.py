@@ -33,7 +33,7 @@ class AnalyzeDialog(QDialog):
         self.connect_signal_slots()
         self.thread = LRelThreadAnalyzer(self.lrel)
         self.thread._signal.connect(self.text_update)
-        self.thread.finished.connect(self.close)
+        self.thread.finished.connect(self.correctly_processed_directories)
         self.thread.start()
 
     def connect_signal_slots(self):
@@ -41,7 +41,10 @@ class AnalyzeDialog(QDialog):
 
     def ok_button_slot(self):
         self.thread.quit()
-        self.close()
+        self.reject()
 
     def text_update(self, msg: str):
         self.ui.currentFileLabel.setText(msg)
+
+    def correctly_processed_directories(self):
+        self.accept()

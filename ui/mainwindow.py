@@ -23,6 +23,7 @@ class MainWindow(QMainWindow):
         self.ui.actionExit.triggered.connect(self.close)
         self.ui.actionOpen.triggered.connect(self.show_open_dialog)
         self.ui.pushButton_analize.clicked.connect(self.analyze_action)
+        self.ui.pushButton_preProcessImages.clicked.connect(self.preprocess_images_action)
 
     def show_open_dialog(self):
         home_dir = str(Path.home())
@@ -42,11 +43,23 @@ class MainWindow(QMainWindow):
 
     def analyze_action(self):
         self.statusBar().showMessage("started")
-        AnalyzeDialog(self.lrel, self).exec()
-        self.statusBar().showMessage("finished analysis")
+        dialog = AnalyzeDialog(self.lrel, self)
+        dialog.accepted.connect(self.accepted_analyze_dialog)
+        dialog.rejected.connect(self.rejected_analyze_dialog)
+        dialog.exec()
 
         self.ui.lineEdit_mValidation.setText(self.lrel.validation_count.__str__())
         self.ui.lineEdit_mTraining.setText(self.lrel.training_count.__str__())
+
+    def accepted_analyze_dialog(self):
+        self.statusBar().showMessage("finished analysis")
+        self.ui.pushButton_preProcessImages.setEnabled(True)
+
+    def rejected_analyze_dialog(self):
+        self.statusBar().showMessage("canceled analysis")
+
+    def preprocess_images_action(self):
+        self.lrel.preprocess_images(64)
 
 
 
