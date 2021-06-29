@@ -3,11 +3,12 @@ from __future__ import annotations
 import imghdr
 import pathlib
 import os
-from typing import Tuple
+from typing import Tuple, Dict
 
 from PIL import Image, ImageMath
 import numpy as np
-
+import h5py
+from h5py import Group
 
 
 class LRel:
@@ -17,6 +18,7 @@ class LRel:
         self.image_paths_training_1: [pathlib.Path] = []
         self.image_paths_validation_0: [pathlib.Path] = []
         self.image_paths_validation_1: [pathlib.Path] = []
+        self.training_dataset_dictionary: Dict = {}
 
         self.training_x: np.ndarray = np.empty(0)
         self.training_y: np.ndarray = np.empty(0)
@@ -119,20 +121,50 @@ class LRel:
 
     def preprocess_images(self, pixels):
         self.initialize_image_arrays(pixels)
-        for index, path in enumerate(self.image_paths_training_0):
+        self.open_images_for_array_with_label_and_offset(
+            self.training_x, self.training_y, self.image_paths_training_0, 0, pixels
+        )
+        self.open_images_for_array_with_label_and_offset(
+            self.training_x, self.training_y, self.image_paths_training_1, 1, pixels, self.training_0_count
+        )
+        self.training_dataset_dictionary = {
+            "X": self.training_x,
+            "Y": self.training_y
+        }
+
+        self.save_dictionary("training", self.training_dataset_dictionary)
+
+    def save_dictionary(self, name: str, dictionary: Dict[str, np.ndarray]):
+        filename = self.working_dir + "/datasets.hdf5"
+        with h5py.File(filename, "a") as f:
+            if name in f:
+                del f[name]
+            group = f.create_group(name)
+            for key, value in dictionary.items():
+                group.create_dataset(key, data=value)
+
+        print(f"saved: {name}")
+        print(f"shape: {group.visititems()}")
+
+    def open_dictionary(self, name: str) -> Dict[str, np.ndarray]:
+        dictionary: Dict[str, np.ndarray] = {}
+        with h5py.File(self.working_dir + "/datasets.hdf5", "r") as f:
+            group: Group = f[name]
+            group.visititems(LRel.populate_dictionary(dictionary))
+        return dictionary
+
+    @staticmethod
+    def populate_dictionary(dictionary):
+        def inner(name, group):
+            dictionary[name] = np.array(group)
+            return None
+        return inner
+
+    def open_images_for_array_with_label_and_offset(self, array_x, array_y, paths, label, pixels, offset=0):
+        for index, path in enumerate(paths):
             print(f"processing: {path}")
-            self.training_x[index] = self.open_and_normalize_image(pixels, path)
-
-        for index, path in enumerate(self.image_paths_training_1):
-            print(f"processing: {path}")
-            self.training_x[index + len(self.image_paths_training_0)] = self.open_and_normalize_image(pixels, path)
-
-        for i in range(self.training_0_count):
-            self.training_y[i] = 0
-        for i in range(self.training_1_count):
-            self.training_y[i+self.training_0_count] = 1
-
-
+            array_x[offset + index] = self.open_and_normalize_image(pixels, path)
+            array_y[offset + index] = label
 
     @staticmethod
     def open_and_normalize_image(pixels, path) -> np.ndarray:
@@ -145,7 +177,6 @@ class LRel:
             np_img = np.array(rgb_img)
 
         return np_img/255
-
 
     @staticmethod
     def calculate_image_array_shape(n_images: int, pixels: int) -> Tuple[int, int, int, int]:
