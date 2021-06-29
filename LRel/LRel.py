@@ -57,6 +57,8 @@ class LRel:
             self.validation_dir_1 = self.validation_dir_0 = self.training_dir_1 = self.training_dir_0 = None
 
     # todo later lets return numeric values for the error? or something different than txt
+    # even probably better to let the exception tell which directory is missing and trap it inside
+    # a catch in the gui and display it :DDDDDD :(((( xddd
     def process_directories(self, signal) -> str:
         # initializaiton of values.
         msg = "sucess"
